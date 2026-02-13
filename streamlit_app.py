@@ -13,18 +13,25 @@ st.write("Choose the fruits you want in your custom Smoothie!")
 
 name_on_order = st.text_input("Name on Smoothie Order:")
 
-# -----------------------------
+
 # Load Fruit Table
 # Must include SEARCH_ON column
-# -----------------------------
-my_dataframe = session.table(
-    "SMOOTHIES.PUBLIC.FRUIT_OPTIONS"
-).to_pandas()
 
-# -----------------------------
+my_dataframe = session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS") \
+    .select(col("FRUIT_NAME"), col("SEARCH_ON")) \
+    .to_pandas()
+
+st.dataframe(data=my_dataframe, use_container_width=True)
+st.stop()
+
 # Create Lookup Dictionary
 # GUI name → API search value
-# -----------------------------
+'''
+search_value = my_dataframe.loc[
+    my_dataframe["FRUIT_NAME"] == fruit_chosen,
+    "SEARCH_ON"
+].values[0]
+'''
 fruit_lookup = dict(
     zip(
         my_dataframe["FRUIT_NAME"],
