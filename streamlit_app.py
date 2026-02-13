@@ -1,18 +1,15 @@
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
 from snowflake.snowpark.functions import col
+
+cnx = st.connection("snowflake")
+session = cnx.session()
 
 # Title
 st.title("🥤 Customize Your Smoothie! 🥤")
-
 st.write("Choose the fruits you want in your custom Smoothie!")
 
 # NEW — Name input box
 name_on_order = st.text_input('Name on Smoothie Order:')
-
-
-# Create Snowflake session
-session = get_active_session()
 
 # Pull fruit table into dataframe
 my_dataframe = session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS").to_pandas()
