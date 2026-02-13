@@ -1,106 +1,104 @@
 import streamlit as st
 from snowflake.snowpark.functions import col
-import requests 
+import requests
 
+# -----------------------------------
 # Snowflake Connection
+# -----------------------------------
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Title / Instructions
-
+# -----------------------------------
+# Title + Intro
+# -----------------------------------
 st.title("🥤 Customize Your Smoothie! 🥤")
 st.write("Choose the fruits you want in your custom Smoothie!")
 
+# -----------------------------------
+# Name Input
+# -----------------------------------
 name_on_order = st.text_input("Name on Smoothie Order:")
 
-
-# Load Fruit Table
-# Must include SEARCH_ON column
-
+# -----------------------------------
+# Pull Fruit Options Table
+# Include SEARCH_ON column
+# -----------------------------------
 my_dataframe = session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS") \
     .select(col("FRUIT_NAME"), col("SEARCH_ON")) \
     .to_pandas()
 
-st.dataframe(data=my_dataframe, use_container_width=True)
-st.stop()
-
-# Create Lookup Dictionary
-# GUI name → API search value
-'''
-search_value = my_dataframe.loc[
-    my_dataframe["FRUIT_NAME"] == fruit_chosen,
-    "SEARCH_ON"
-].values[0]
-'''
-fruit_lookup = dict(
-    zip(
-        my_dataframe["FRUIT_NAME"],
-        my_dataframe["SEARCH_ON"]
-    )
-)
-
-# -----------------------------
-# Multiselect
-# -----------------------------
+# -----------------------------------
+# Multiselect (GUI uses FRUIT_NAME)
+# -----------------------------------
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     my_dataframe["FRUIT_NAME"],
     max_selections=5
 )
 
-# -----------------------------
-# If Fruits Selected
-# -----------------------------
+# -----------------------------------
+# If fruits selected
+# -----------------------------------
 if ingredients_list:
 
     ingredients_string = ""
 
     for fruit_chosen in ingredients_list:
 
-        # Build order string
+        # Build ingredient string for insert
         ingredients_string += fruit_chosen + " "
 
-        # Lookup API search value
-        search_value = fruit_lookup[fruit_chosen]
+        # -----------------------------------
+        # Lookup SEARCH_ON value
+        # -----------------------------------
+        search_value = my_dataframe.loc[
+            my_dataframe["FRUIT_NAME"] == fruit_chosen,
+            "SEARCH_ON"
+        ].values[0]
 
-        # Section header per fruit
-        st.subheader(
-            fruit_chosen + " Nutrition Information"
-        )
+        # -----------------------------------
+        # Display section header
+        # -----------------------------------
+        st.subheader(fruit_chosen + " Nutrition Information")
 
-        # API Call
+        # -----------------------------------
+        # Call SmoothieFroot API
+        # -----------------------------------
         smoothiefroot_response = requests.get(
             f"https://my.smoothiefroot.com/api/fruit/{search_value}"
         )
 
-        # Display JSON → Dataframe
+        # -----------------------------------
+        # Display nutrition dataframe
+        # -----------------------------------
         st.dataframe(
             data=smoothiefroot_response.json(),
             use_container_width=True
         )
 
-    # -----------------------------
-    # Insert Order SQL
-    # -----------------------------
+    # -----------------------------------
+    # Build Insert Statement
+    # -----------------------------------
     my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders
+        INSERT INTO SMOOTHIES.PUBLIC.ORDERS
         (ingredients, name_on_order)
         VALUES
         ('{ingredients_string}', '{name_on_order}')
     """
 
-    # -----------------------------
+    # -----------------------------------
     # Submit Button
-    # -----------------------------
+    # -----------------------------------
     time_to_insert = st.button("Submit Order")
 
+    # -----------------------------------
+    # Insert if clicked
+    # -----------------------------------
     if time_to_insert:
 
         session.sql(my_insert_stmt).collect()
 
         st.success(
-            "Your Smoothie is ordered, "
-            + name_on_order
-            + "!",
+            "Your Smoothie is ordered, " + name_on_order + "!",
             icon="✅"
         )
